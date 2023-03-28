@@ -1,0 +1,10 @@
+# Packages listed in this file will be installed by micropip just before the app
+# is started. This means that each time someone visits the app, the packages
+# will be downloaded and installed into the browser's Pyodide environment.
+#
+# Each line must contain either a requirements specification or the URL for a
+# wheel file.
+isodate
+scikit-learn
+attrs==21.4.0
+https://files.pythonhosted.org/packages/ca/80/7c0cad11bd99985cfe7c09427ee0b4f9bd6b048bd13d4ffb32c6db237dfb/tabulate-0.8.9-py3-none-any.whl
