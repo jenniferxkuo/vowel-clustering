@@ -1,6 +1,11 @@
 
+#notes: 
+#Packages to install: micropip, shiny, shinylive
+#To build page: shinylive export myapp docs
+#
+
+#import libraries
 import micropip
-#micropip.install("scikit-learn")
 import asyncio
 
 async def mypackages():
@@ -13,16 +18,34 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+
 import seaborn as sb
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
-#import matplotlib.pyplot as plt
-#import seaborn as sb
-#from scipy.spatial import ConvexHull, convex_hull_plot_2d
-#from sklearn.preprocessing import StandardScaler
+
+def getFile(dataset):
+    if dataset=="hillenbrand":
+        infile = Path(__file__).parent / "hillenbrand_normalized.csv"
+    else:
+        infile = Path(__file__).parent / "buckeye_normalized.csv"
+    df = pd.read_csv(infile)
+    return df
+
+def plotEllipse(x,y,col="black"):
+    cov = np.cov(x, y)
+    lambda_, v = np.linalg.eig(cov)
+    lambda_ = np.sqrt(lambda_)
+    
+    ell = Ellipse(xy=(np.mean(x), np.mean(y)),
+                  color=col,
+                  width=lambda_[0]*2*2, height=lambda_[1]*2*2,
+                  angle=np.rad2deg(np.arccos(v[0, 0])))
+    ell.set_facecolor('none')
+    return ell
 
 def getKmeansClusters(df, nclust):
     kmeans = KMeans(init="k-means++",n_clusters = nclust).fit(df)
@@ -33,10 +56,8 @@ app_ui = ui.page_fluid(
         ui.panel_sidebar(
                 ui.h2("A boring scatterplot"),
                 ui.input_select("algorithm", "Algorithm", {"kmeans": "K-means", "optics": "OPTICS"}),
-                ui.input_slider("n_clusters", "Number of clusters (k)", 1, 15, 6),
-               # ui.input_slider("steps", "Number of Steps", 1, 20, 16),
-               # ui.input_select("step", "Step Type", {"float": "Float", "int": "Integer"}),
-                ui.input_slider("alpha", "Color Opacity", 0, 1, 0.2)
+                ui.input_select("dataset", "Dataset", {"hillenbrand": "Hillenbrand monophthongs", "buckeye": "Buckeye Corpus corner vowels"}),
+                ui.input_slider("n_clusters", "Number of clusters (k)", 1, 15, 6)
         ),
         
         # ui.panel_main(
@@ -67,10 +88,8 @@ def server(input, output, session):
     @render.plot()
     def plot():
         palette = sb.color_palette(None, 6)
-        alpha = input.alpha()
 
-        infile = Path(__file__).parent / "hillenbrand_normalized.csv"
-        df = pd.read_csv(infile)
+        df = getFile(input.dataset())
 
         cats = df['label'].unique()
         ncats = len(cats)
@@ -81,10 +100,12 @@ def server(input, output, session):
             points = df[df['label'] == value][['f2','f1']]
             points = points.to_numpy()
             ax.scatter(points[:, 0], points[:, 1], s=50,alpha=0.4, color=palette[index])
-            hull = ConvexHull(points)
-            vert = np.append(hull.vertices, hull.vertices[0])  # close the polygon by appending the first point at the end
-            ax.plot(points[vert, 0], points[vert, 1], c=palette[index])
-            ax.fill(points[vert, 0], points[vert, 1], c=palette[index], alpha=0.2)
+            ell = plotEllipse(points[:,0],points[:,1],col=palette[index])
+            ax.add_artist(ell)
+            #hull = ConvexHull(points)
+            #vert = np.append(hull.vertices, hull.vertices[0])  # close the polygon by appending the first point at the end
+            #ax.plot(points[vert, 0], points[vert, 1], c=palette[index])
+            #ax.fill(points[vert, 0], points[vert, 1], c=palette[index], alpha=0.2)
         # ax.scatter(df["f2"], df["f1"], color = color, alpha= alpha)
 
         # ax.set_title(label = "My title")
@@ -100,10 +121,7 @@ def server(input, output, session):
     @output
     @render.plot()
     def plotVow():
-        #alpha = input.alpha()
-
-        infile = Path(__file__).parent / "hillenbrand_normalized.csv"
-        df = pd.read_csv(infile)
+        df = getFile(input.dataset())
         n_clusters = input.n_clusters()
         clust_results = getKmeansClusters(df[['f1','f2']],n_clusters)
 
